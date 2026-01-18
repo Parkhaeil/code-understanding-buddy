@@ -13,6 +13,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        nunito: ['Nunito', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -47,6 +50,22 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        cherry: {
+          red: "hsl(var(--cherry-red))",
+          pink: "hsl(var(--cherry-pink))",
+          cream: "hsl(var(--cherry-cream))",
+          dark: "hsl(var(--cherry-dark))",
+          green: "hsl(var(--cherry-green))",
+          stem: "hsl(var(--cherry-stem))",
+        },
+        panel: {
+          DEFAULT: "hsl(var(--panel-bg))",
+          border: "hsl(var(--panel-border))",
+        },
+        code: {
+          DEFAULT: "hsl(var(--code-bg))",
+          highlight: "hsl(var(--code-line-highlight))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -65,25 +84,23 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+      },
+      boxShadow: {
+        'cherry': '0 4px 20px -4px hsl(var(--cherry-red) / 0.25)',
+        'cherry-lg': '0 8px 30px -6px hsl(var(--cherry-red) / 0.3)',
+        'soft': '0 4px 20px -4px hsl(var(--foreground) / 0.08)',
+        'panel': '0 2px 12px -2px hsl(var(--foreground) / 0.05)',
       },
     },
   },
