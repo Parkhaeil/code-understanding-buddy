@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Send, Lightbulb, Video, FileText, Target } from "lucide-react";
+import { Send, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import CherryCharacter from "./CherryCharacter";
@@ -8,7 +8,9 @@ import { cn } from "@/lib/utils";
 interface ExplanationPanelProps {
   fileName: string;
   selectedLine: number | null;
-  level: 1 | 2 | 3;
+  selectedRange?: { start: number; end: number } | null;
+  fileContent?: string;
+  level: 1 | 2;
 }
 
 interface FileExplanation {
@@ -78,7 +80,7 @@ const suggestedQuestions = [
   "이 코드 없으면 어떻게 돼요?",
 ];
 
-const ExplanationPanel = ({ fileName, selectedLine, level }: ExplanationPanelProps) => {
+const ExplanationPanel = ({ fileName, selectedLine, selectedRange, fileContent, level }: ExplanationPanelProps) => {
   const [question, setQuestion] = useState("");
   const [chatHistory, setChatHistory] = useState<Array<{ q: string; a: string }>>([
     { q: "React가 뭐예요?", a: "React는 웹사이트 화면을 만드는 도구예요! 레고처럼 작은 조각들을 조립해서 큰 화면을 만들어요 🧱" },
@@ -87,16 +89,49 @@ const ExplanationPanel = ({ fileName, selectedLine, level }: ExplanationPanelPro
   const explanation = explanations[fileName] || explanations["main.tsx"];
   const lineExplanation = selectedLine ? explanation.lineExplanations[selectedLine] : null;
 
-  const handleSendQuestion = () => {
+  // 선택된 범위의 코드 스니펫 추출
+  const getSelectedSnippet = (): string | null => {
+    if (!fileContent) return null;
+    
+    if (selectedRange && selectedRange.start !== selectedRange.end) {
+      const lines = fileContent.split('\n');
+      return lines.slice(selectedRange.start - 1, selectedRange.end).join('\n');
+    } else if (selectedLine) {
+      const lines = fileContent.split('\n');
+      return lines[selectedLine - 1] || null;
+    }
+    return null;
+  };
+
+  const selectedSnippet = getSelectedSnippet();
+
+  const handleSendQuestion = async () => {
     if (!question.trim()) return;
     
-    // Simulate AI response
-    const newChat = {
-      q: question,
-      a: `"${question}"에 대해 설명해줄게요! 🍒 이건 프로그래밍에서 정말 중요한 개념이에요...`,
-    };
-    setChatHistory([newChat, ...chatHistory]);
-    setQuestion("");
+    // 선택된 스니펫이 있으면 포함
+    const contextSnippet = selectedSnippet 
+      ? `\n\n선택한 코드:\n\`\`\`\n${selectedSnippet}\n\`\`\``
+      : '';
+    
+    const fullQuestion = `${question}${contextSnippet}`;
+    
+    try {
+      // 실제 API 호출 (나중에 구현)
+      // const response = await fetch('/api/llm/explain', {
+      //   method: 'POST',
+      //   body: JSON.stringify({ question: fullQuestion, fileName, selectedRange }),
+      // });
+      
+      // Simulate AI response
+      const newChat = {
+        q: question,
+        a: `"${question}"에 대해 설명해줄게요! 🍒${selectedSnippet ? ' 선택하신 코드를 참고해서' : ''} 이건 프로그래밍에서 정말 중요한 개념이에요...`,
+      };
+      setChatHistory([newChat, ...chatHistory]);
+      setQuestion("");
+    } catch (error) {
+      console.error('Failed to send question:', error);
+    }
   };
 
   return (
@@ -136,7 +171,7 @@ const ExplanationPanel = ({ fileName, selectedLine, level }: ExplanationPanelPro
           </div>
 
           {/* What This File Does */}
-          {!selectedLine && (
+          {!selectedLine && !selectedRange && (
             <div className="mt-4 space-y-2">
               <p className="text-sm font-medium text-foreground">이 파일이 하는 일:</p>
               {explanation.steps.map((step, i) => (
@@ -149,29 +184,35 @@ const ExplanationPanel = ({ fileName, selectedLine, level }: ExplanationPanelPro
               ))}
             </div>
           )}
-
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-2 mt-4">
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-              <Video className="w-3.5 h-3.5" />
-              동영상으로 보기
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-              <FileText className="w-3.5 h-3.5" />
-              더 쉽게 설명
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-              <Target className="w-3.5 h-3.5" />
-              예시 보기
-            </Button>
-          </div>
         </div>
 
-        {/* Question Section */}
-        <div className="p-4">
+        {/* Question Section with Selected Range */}
+        <div className="p-4 border-t border-border">
           <h4 className="font-bold text-foreground flex items-center gap-2 mb-3">
             💬 궁금한 거 물어봐요!
           </h4>
+
+          {/* Selected Range Info */}
+          {(selectedRange && selectedRange.start !== selectedRange.end) || selectedLine ? (
+            <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+              {selectedRange && selectedRange.start !== selectedRange.end ? (
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-2">
+                    📌 선택한 구간: 라인 {selectedRange.start} ~ {selectedRange.end}
+                  </p>
+                  {selectedSnippet && (
+                    <div className="p-2 bg-background rounded text-xs font-mono overflow-x-auto max-h-32 overflow-y-auto">
+                      <pre className="whitespace-pre-wrap">{selectedSnippet}</pre>
+                    </div>
+                  )}
+                </div>
+              ) : selectedLine ? (
+                <p className="text-sm font-medium text-foreground">
+                  📌 선택한 라인: {selectedLine}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           {/* Input */}
           <div className="flex gap-2 mb-4">

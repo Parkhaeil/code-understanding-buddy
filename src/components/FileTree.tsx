@@ -1,119 +1,185 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import type { Role } from "@/types/project";
 
-interface FileNode {
+type TreeNode = {
   name: string;
+  path: string;
   type: "file" | "folder";
-  icon?: string;
-  color?: string;
-  level?: number;
-  description?: string;
-  children?: FileNode[];
-}
+  children?: TreeNode[];
+};
 
 interface FileTreeProps {
+  projectName: string;
+  files: string[]; // 현재 레벨에서 보여줄 파일들(이미 필터된 리스트)
   selectedFile: string | null;
-  onSelectFile: (fileName: string) => void;
-  showOnlyImportant?: boolean;
+  onSelectFile: (filePath: string) => void;
+  fileRoleMap: Record<string, Role>;
+  coreFiles: string[]; // analysis.core_files.map(f=>f.path)
+  level: 1 | 2;
 }
 
-const sampleFileTree: FileNode[] = [
-  {
-    name: "my-project",
-    type: "folder",
-    children: [
-      {
-        name: "src",
-        type: "folder",
-        children: [
-          { name: "main.tsx", type: "file", icon: "🔴", color: "text-primary", level: 1, description: "시작 버튼" },
-          { name: "App.tsx", type: "file", icon: "🎨", color: "text-primary", level: 1, description: "화면 그리기" },
-          { 
-            name: "components", 
-            type: "folder",
-            level: 2,
-            children: [
-              { name: "Button.tsx", type: "file", icon: "🧩", level: 2, description: "버튼 블록" },
-              { name: "Header.tsx", type: "file", icon: "🧩", level: 2, description: "머리 부분" },
-            ]
-          },
-          { 
-            name: "routes", 
-            type: "folder",
-            level: 1,
-            children: [
-              { name: "index.tsx", type: "file", icon: "🗺️", level: 1, description: "첫 페이지" },
-              { 
-                name: "api", 
-                type: "folder",
-                level: 2,
-                children: [
-                  { name: "users.ts", type: "file", icon: "⚡", level: 2, description: "사용자 기능" },
-                ]
-              },
-            ]
-          },
-        ]
-      },
-      {
-        name: "public",
-        type: "folder",
-        level: 2,
-        children: [
-          { name: "logo.png", type: "file", icon: "🖼️", level: 2, description: "로고 이미지" },
-          { name: "index.html", type: "file", icon: "📄", level: 2, description: "HTML 파일" },
-        ]
-      },
-      { name: "package.json", type: "file", icon: "📦", color: "text-accent", level: 1, description: "재료 목록표" },
-      { name: "vite.config.js", type: "file", icon: "⚙️", level: 3, description: "설정 파일" },
-    ]
-  }
-];
+const roleIcons: Record<Role, string> = {
+  UI: "🎨",
+  SERVER: "⚡",
+  DATA: "🗄️",
+  CONFIG: "⚙️",
+  DOC: "📄",
+  OTHER: "📄",
+};
 
-const FileTree = ({ selectedFile, onSelectFile, showOnlyImportant = true }: FileTreeProps) => {
+const roleLabels: Record<Role, string> = {
+  UI: "UI",
+  SERVER: "API",
+  DATA: "DB",
+  CONFIG: "CFG",
+  DOC: "DOC",
+  OTHER: "FILE",
+};
+
+const FileTree = ({
+  projectName,
+  files,
+  selectedFile,
+  onSelectFile,
+  fileRoleMap,
+  coreFiles,
+  level,
+}: FileTreeProps) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set(["my-project", "src", "routes"])
-  );
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
-  const toggleFolder = (path: string) => {
-    const newExpanded = new Set(expandedFolders);
-    if (newExpanded.has(path)) {
-      newExpanded.delete(path);
-    } else {
-      newExpanded.add(path);
+  const coreFilesSet = useMemo(() => new Set(coreFiles), [coreFiles]);
+
+  // selectedFile의 상위 폴더들을 자동으로 펼치기
+  useEffect(() => {
+    if (selectedFile) {
+      const parts = selectedFile.split("/");
+      const newExpanded = new Set(expandedFolders);
+      let currentPath = "";
+      for (let i = 0; i < parts.length - 1; i++) {
+        currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+        newExpanded.add(currentPath);
+      }
+      setExpandedFolders(newExpanded);
     }
-    setExpandedFolders(newExpanded);
+  }, [selectedFile]);
+
+  // files로부터 트리 구조 생성
+  const buildTree = (filePaths: string[]): TreeNode[] => {
+    const root: Record<string, TreeNode> = {};
+
+    for (const filePath of filePaths) {
+      const parts = filePath.split("/");
+      let current = root;
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        const isLast = i === parts.length - 1;
+        const path = parts.slice(0, i + 1).join("/");
+
+        if (!current[part]) {
+          current[part] = {
+            name: part,
+            path,
+            type: isLast ? "file" : "folder",
+            children: isLast ? undefined : {},
+          } as TreeNode;
+        }
+
+        if (!isLast && current[part].children) {
+          current = current[part].children as Record<string, TreeNode>;
+        }
+      }
+    }
+
+    // children을 Record에서 배열로 변환하고 정렬
+    const convertToArray = (node: TreeNode): TreeNode => {
+      if (node.children && typeof node.children === "object" && !Array.isArray(node.children)) {
+        const childrenArray = Object.values(node.children)
+          .map(convertToArray)
+          .sort((a, b) => {
+            // 폴더 먼저, 그 다음 파일
+            if (a.type !== b.type) {
+              return a.type === "folder" ? -1 : 1;
+            }
+            // 이름순
+            return a.name.localeCompare(b.name);
+          });
+        return { ...node, children: childrenArray };
+      }
+      return node;
+    };
+
+    return Object.values(root)
+      .map(convertToArray)
+      .sort((a, b) => {
+        if (a.type !== b.type) {
+          return a.type === "folder" ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name);
+      });
   };
 
-  const renderNode = (node: FileNode, path: string = "", depth: number = 0) => {
-    const currentPath = path ? `${path}/${node.name}` : node.name;
-    const isExpanded = expandedFolders.has(currentPath);
-    const isSelected = selectedFile === node.name;
+  const tree = useMemo(() => buildTree(files), [files]);
 
-    // Filter by level if showOnlyImportant
-    if (showOnlyImportant && node.level && node.level > 1) {
-      return null;
-    }
+  const toggleFolder = (path: string) => {
+    setExpandedFolders((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(path)) {
+        newSet.delete(path);
+      } else {
+        newSet.add(path);
+      }
+      return newSet;
+    });
+  };
 
-    // Filter by search
-    if (searchQuery && !node.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-      if (node.type === "file") return null;
+  // 검색 필터링: 파일명에 검색어가 포함되는지 확인
+  const matchesSearch = (node: TreeNode): boolean => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return node.name.toLowerCase().includes(query);
+  };
+
+  // 폴더가 검색 결과에 포함되는지 확인 (자식 중 하나라도 매치되면)
+  const folderHasMatch = (node: TreeNode): boolean => {
+    if (!searchQuery) return true;
+    if (matchesSearch(node)) return true;
+    if (node.children) {
+      return node.children.some((child) =>
+        child.type === "file" ? matchesSearch(child) : folderHasMatch(child)
+      );
     }
+    return false;
+  };
+
+  const renderNode = (node: TreeNode, depth: number = 0): JSX.Element | null => {
+    const isExpanded = expandedFolders.has(node.path);
+    const isSelected = selectedFile === node.path;
+    const isCore = coreFilesSet.has(node.path);
+    const role = fileRoleMap[node.path] || "OTHER";
 
     if (node.type === "folder") {
-      const visibleChildren = node.children?.map((child, i) => 
-        renderNode(child, currentPath, depth + 1)
-      ).filter(Boolean);
+      // 검색 필터링
+      if (searchQuery && !folderHasMatch(node)) {
+        return null;
+      }
 
-      if (searchQuery && visibleChildren?.length === 0) return null;
+      const visibleChildren = node.children
+        ?.map((child) => renderNode(child, depth + 1))
+        .filter(Boolean);
+
+      if (searchQuery && (!visibleChildren || visibleChildren.length === 0)) {
+        return null;
+      }
 
       return (
-        <div key={currentPath}>
+        <div key={node.path}>
           <button
-            onClick={() => toggleFolder(currentPath)}
+            onClick={() => toggleFolder(node.path)}
             className={cn(
               "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm hover:bg-muted/50 transition-colors",
               "text-foreground"
@@ -121,43 +187,67 @@ const FileTree = ({ selectedFile, onSelectFile, showOnlyImportant = true }: File
             style={{ paddingLeft: `${depth * 12 + 8}px` }}
           >
             {isExpanded ? (
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             ) : (
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             )}
             {isExpanded ? (
-              <FolderOpen className="w-4 h-4 text-amber-500" />
+              <FolderOpen className="w-4 h-4 text-amber-500 flex-shrink-0" />
             ) : (
-              <Folder className="w-4 h-4 text-amber-500" />
+              <Folder className="w-4 h-4 text-amber-500 flex-shrink-0" />
             )}
-            <span className="font-medium">{node.name}</span>
+            <span className="font-medium truncate">{node.name}</span>
           </button>
-          {isExpanded && (
-            <div className="animate-accordion-down">
-              {visibleChildren}
-            </div>
+          {isExpanded && visibleChildren && (
+            <div className="animate-accordion-down">{visibleChildren}</div>
           )}
         </div>
       );
     }
 
+    // 파일 노드
+    if (searchQuery && !matchesSearch(node)) {
+      return null;
+    }
+
     return (
       <button
-        key={currentPath}
-        onClick={() => onSelectFile(node.name)}
+        key={node.path}
+        onClick={() => onSelectFile(node.path)}
         className={cn(
-          "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-all",
-          isSelected 
-            ? "bg-secondary text-secondary-foreground font-medium" 
+          "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-all group",
+          isSelected
+            ? "bg-secondary text-secondary-foreground font-medium"
             : "hover:bg-muted/50 text-foreground"
         )}
         style={{ paddingLeft: `${depth * 12 + 28}px` }}
       >
-        <span className="text-base">{node.icon || "📄"}</span>
-        <span className={cn(node.color)}>{node.name}</span>
+        <File className={cn("w-4 h-4 flex-shrink-0", isCore && "text-primary")} />
+        <span
+          className={cn(
+            "truncate",
+            isCore && "text-primary font-semibold",
+            isSelected && "font-medium"
+          )}
+        >
+          {isCore && <span className="mr-1">⭐</span>}
+          {node.name}
+        </span>
         {isSelected && (
-          <span className="ml-auto text-xs text-primary font-medium">◀ 지금</span>
+          <span className="ml-auto text-xs text-primary font-medium flex-shrink-0">◀</span>
         )}
+        {/* Role Badge */}
+        <span
+          className={cn(
+            "ml-auto text-xs px-1.5 py-0.5 rounded flex-shrink-0",
+            "bg-muted text-muted-foreground",
+            isSelected && "bg-primary/20 text-primary"
+          )}
+          title={role}
+        >
+          <span className="mr-1">{roleIcons[role]}</span>
+          {roleLabels[role]}
+        </span>
       </button>
     );
   };
@@ -179,20 +269,20 @@ const FileTree = ({ selectedFile, onSelectFile, showOnlyImportant = true }: File
 
       {/* Tree */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
-        {sampleFileTree.map((node) => renderNode(node))}
+        {tree.length === 0 ? (
+          <div className="text-center text-muted-foreground text-sm py-8">
+            파일이 없습니다
+          </div>
+        ) : (
+          tree.map((node) => renderNode(node))
+        )}
       </div>
 
-      {/* Level Filter */}
+      {/* Level Info */}
       <div className="p-3 border-t border-border">
-        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-          <input 
-            type="checkbox" 
-            checked={showOnlyImportant}
-            readOnly
-            className="rounded border-border text-primary focus:ring-primary"
-          />
-          Lv1만 보기 ✓
-        </label>
+        <div className="text-xs text-muted-foreground">
+          <span className="font-medium">Lv{level}</span> · {files.length}개 파일
+        </div>
       </div>
     </div>
   );
