@@ -89,7 +89,7 @@ Cherry는 세 가지 교육 전략을 적용했습니다:
 - **Frontend**: React, TypeScript, Vite
 - **UI**: shadcn-ui, Tailwind CSS
 - **Backend**: Node.js, Express
-- **AI**: OpenAI API
+- **AI**: OpenAI GPT 4o mini(설명용) GPT 4o(프로젝트 분석용)
 
 ## 📸 페이지 이미지
 <img width="2559" height="1299" alt="image" src="https://github.com/user-attachments/assets/427653e6-bf28-4d4d-ad2e-83a85fc1917f" />
