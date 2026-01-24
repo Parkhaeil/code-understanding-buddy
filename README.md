@@ -1,5 +1,4 @@
 # 🍒 Cherry - AI 바이브코딩 교육 웹사이트
-
 AI가 생성한 웹 프로젝트를 학습 관점에서 재구성해주는 교육용 AI 웹사이트입니다.
 
 ## 🚀 빠른 시작
@@ -23,6 +22,7 @@ npm run dev
 ## 📋 프로젝트 소개
 
 Cherry는 AI가 만든 결과물을 그대로 사용하는 것이 아니라, 그 결과를 학습 콘텐츠로 변환하여 진짜 학습을 도와주는 교육 플랫폼입니다.
+
 
 ### 🎯 해결하고자 하는 문제
 
@@ -90,3 +90,10 @@ Cherry는 세 가지 교육 전략을 적용했습니다:
 - **UI**: shadcn-ui, Tailwind CSS
 - **Backend**: Node.js, Express
 - **AI**: OpenAI API
+
+## 페이지 이미지
+<img width="2559" height="1299" alt="image" src="https://github.com/user-attachments/assets/427653e6-bf28-4d4d-ad2e-83a85fc1917f" />
+<br>
+<img width="2559" height="1299" alt="image" src="https://github.com/user-attachments/assets/4fd4c405-266f-4141-8719-aa909b08014c" />
+
+
