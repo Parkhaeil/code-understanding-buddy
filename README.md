@@ -1,73 +1,92 @@
-# Welcome to your Lovable project
+# 🍒 Cherry - AI 바이브코딩 교육 웹사이트
 
-## Project info
+AI가 생성한 웹 프로젝트를 학습 관점에서 재구성해주는 교육용 AI 웹사이트입니다.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## 🚀 빠른 시작
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# 1. 저장소 클론
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# 2. 프로젝트 디렉토리로 이동
+cd code-understanding-buddy
 
-# Step 3: Install the necessary dependencies.
-npm i
+# 3. 의존성 설치
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 4. 개발 서버 실행
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+> **참고**: Node.js & npm이 필요합니다. [nvm으로 설치하기](https://github.com/nvm-sh/nvm#installing-and-updating)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📋 프로젝트 소개
 
-**Use GitHub Codespaces**
+Cherry는 AI가 만든 결과물을 그대로 사용하는 것이 아니라, 그 결과를 학습 콘텐츠로 변환하여 진짜 학습을 도와주는 교육 플랫폼입니다.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### 🎯 해결하고자 하는 문제
 
-## What technologies are used for this project?
+현재 우리나라의 정보 교육은 다음과 같은 구조적 제약을 가지고 있습니다:
 
-This project is built with:
+- **정보 교육 시수 부족**: 주요국에 비해 현저히 낮은 수준
+- **교사 부족**: 전국 17개 시도 교육청 중 14곳에서 학교당 정보 교사 1명조차 배치되지 못함
+- **실질적 코딩 교육 부재**: 프로젝트 기반 실습 시 교사 1인이 모든 학생에게 개별 설명이 어렵고, 시간적 한계와 교육편차로 인해 AI로 결과물만 만들게 되어 코딩을 제대로 학습할 수 없음
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+**선생님은 설명할 시간이 없고, 학생은 이해할 기회가 없습니다.**
 
-## How can I deploy this project?
+### 💡 솔루션
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Cherry는 AI가 생성한 웹 프로젝트를 학습 관점에서 재구성하여, 학생이 스스로 코드를 이해하고 학습할 수 있도록 돕습니다.
 
-## Can I connect a custom domain to my Lovable project?
+## ✨ 핵심 기능
 
-Yes, you can!
+### 1. AI 프로젝트 자동 분석 및 학습 스텝 설계
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- AI가 프로젝트 전체 구조를 분석하여 학습에 필요한 핵심 파일과 이해 순서를 자동으로 설계
+- Step 1부터 Step 5까지 차례대로 코드 구조를 이해할 수 있는 구조화된 학습 경로 제공
+- 각 스텝마다 목표, 확인 퀴즈, 작은 수정 미션을 제시하여 학습 목표를 명확히 함
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### 2. 레벨별 설명 난이도 조절
+
+- **Lv.1**: 중요하지 않은 코드는 잠시 감추고, 중요한 코드부터 단계적으로 제시
+- **Lv.2**: 전체 코드 내용 제공
+- 모든 코드를 한 번에 보여주지 않고 핵심 요소부터 단계적으로 제시하여 학습 부담 감소
+
+### 3. 상호작용 기반 코드 이해
+
+- 코드를 직접 클릭하거나 드래그 선택하여 질문 가능
+- "이 코드는 무슨 역할인가요?"와 같은 질문에 AI가 즉시 설명 제공
+- 의문이 생길 때마다 바로바로 원리를 이해하는 학습 경험 제공
+
+### 4. 실시간 코드 수정 및 실행
+
+- 하나의 화면에서 코드 수정과 실행이 동시에 가능
+- 버튼 하나로 실시간 코드 실행과 수정 가능
+- 수정 미션을 통해 코드 변경의 결과를 직접 확인하며 성취감을 얻을 수 있음
+
+## 🎓 교육적 차별성
+
+Cherry는 세 가지 교육 전략을 적용했습니다:
+
+1. **인지 부하 감소 원리**: 핵심만 단계적으로 제시하여 학습 부담 감소
+2. **후행 학습 전략**: 이미 만들어진 결과물에서 출발해 구조와 원리를 거꾸로, 더 효과적으로 이해
+3. **자기주도 학습 강화**: 질문 기반 인터랙션을 통해 학생이 능동적으로 탐구하며 학습
+
+## 🚀 기대 효과
+
+### 기존 교육 환경
+- 결과 중심 실습으로 학습 과정 이해 부족
+- 모방형 학습 고착
+- 교육 격차 발생
+
+### Cherry 도입 후
+- 구조와 흐름 기반 분석 가능
+- 실행 원인을 즉시 확인하면서 자기주도 학습 역량 강화
+- 표준화된 학습 지원으로 교육 격차 완화
+
+## 🛠️ 기술 스택
+
+- **Frontend**: React, TypeScript, Vite
+- **UI**: shadcn-ui, Tailwind CSS
+- **Backend**: Node.js, Express
+- **AI**: OpenAI API
