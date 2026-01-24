@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>즐겨찾기한 레시피</title>
+  <link rel="stylesheet" href="favorites.css">
+</head>
+<body>
+  
+  <h1>❤ 즐겨찾기한 레시피</h1>
+  <button class="back" onclick="location.href='index.html'">← 돌아가기</button>
+  <div id="favorite-list" class="grid"></div>
+  <div id="pagination"></div>
+
+  <div id="modal" class="hidden">
+    <div id="modal-content"></div>
+    <div style="text-align:center; margin-top:15px;">
+      <button onclick="closeModal()" style="padding: 8px 16px; background-color: #ffb84d; color: white; border: none; border-radius: 5px; cursor: pointer;">닫기</button>
+    </div>
+  </div>
+  <script src="favorites.js"></script>
+</body>
+</html>

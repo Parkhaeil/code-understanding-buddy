@@ -11,6 +11,7 @@ interface LandingPageProps {
     analysis: ProjectAnalysis;
     projectFiles: ProjectFiles;
     getFileText: (path: string) => Promise<string>;
+    sessionId?: string; // 프로젝트 세션 ID
   }) => void;
 }
 
@@ -19,6 +20,24 @@ const LandingPage = ({ onStart }: LandingPageProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const zipDataRef = useRef<JSZip | null>(null);
+
+  // #region agent log
+  const debugLog = (payload: { runId: string; hypothesisId: string; location: string; message: string; data?: Record<string, unknown> }) => {
+    fetch("http://127.0.0.1:7242/ingest/cce69336-8107-4f27-b4e4-c2df165ef9a5", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "debug-session",
+        runId: payload.runId,
+        hypothesisId: payload.hypothesisId,
+        location: payload.location,
+        message: payload.message,
+        data: payload.data || {},
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  };
+  // #endregion
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -52,8 +71,65 @@ const LandingPage = ({ onStart }: LandingPageProps) => {
 
   const processZipFile = async (file: File) => {
     setIsProcessing(true);
+    let sessionId: string | undefined;
+    
     try {
-      // ZIP 파일 읽기
+      // #region agent log
+      debugLog({
+        runId: "pre-fix",
+        hypothesisId: "A",
+        location: "LandingPage.tsx:processZipFile:entry",
+        message: "start zip upload",
+        data: { name: file.name, size: file.size, type: file.type, href: window.location.href },
+      });
+      // #endregion
+
+      // 1. ZIP 파일을 서버로 전송하여 추출
+      const formData = new FormData();
+      formData.append("zipFile", file);
+
+      const uploadUrl = "/api/project/upload";
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "POST",
+        body: formData,
+      });
+
+      // #region agent log
+      debugLog({
+        runId: "pre-fix",
+        hypothesisId: "B",
+        location: "LandingPage.tsx:processZipFile:afterFetch",
+        message: "upload response received",
+        data: { uploadUrl, status: uploadResponse.status, ok: uploadResponse.ok },
+      });
+      // #endregion
+
+      const uploadData = await uploadResponse.json();
+      if (!uploadData.ok) {
+        // #region agent log
+        debugLog({
+          runId: "pre-fix",
+          hypothesisId: "D",
+          location: "LandingPage.tsx:processZipFile:uploadNotOk",
+          message: "upload returned ok=false",
+          data: { uploadData },
+        });
+        // #endregion
+        throw new Error(uploadData.error || "ZIP 파일 업로드 실패");
+      }
+      sessionId = uploadData.sessionId;
+
+      // #region agent log
+      debugLog({
+        runId: "pre-fix",
+        hypothesisId: "A",
+        location: "LandingPage.tsx:processZipFile:uploadOk",
+        message: "upload ok",
+        data: { sessionId },
+      });
+      // #endregion
+
+      // 2. ZIP 파일 읽기 (로컬 분석용)
       const zip = await JSZip.loadAsync(file);
       zipDataRef.current = zip;
 
@@ -131,9 +207,22 @@ const LandingPage = ({ onStart }: LandingPageProps) => {
         },
         projectFiles,
         getFileText,
+        sessionId,
       });
     } catch (error) {
       console.error('ZIP 파일 처리 오류:', error);
+      // #region agent log
+      debugLog({
+        runId: "pre-fix",
+        hypothesisId: "A",
+        location: "LandingPage.tsx:processZipFile:catch",
+        message: "zip process error",
+        data: {
+          errorName: error instanceof Error ? error.name : typeof error,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        },
+      });
+      // #endregion
       alert('ZIP 파일을 처리하는 중 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setIsProcessing(false);

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>크롬 공룡 달리기 게임</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <div class="score">점수: <span id="score">0</span></div>
+            <div class="high-score">최고 점수: <span id="highScore">0</span></div>
+        </div>
+        
+        <div class="game-screen" id="gameScreen">
+            <div class="ground"></div>
+            <div class="dino" id="dino"></div>
+            <div class="obstacle" id="obstacle"></div>
+            <div class="cloud" id="cloud"></div>
+        </div>
+        
+        <div class="game-over" id="gameOver">
+            <h2>게임 오버!</h2>
+            <p>점수: <span id="finalScore">0</span></p>
+            <p class="instructions">스페이스바 또는 위쪽 화살표를 눌러 다시 시작</p>
+        </div>
+        
+        <div class="start-screen" id="startScreen">
+            <h1>🦖 공룡을 달려보게 하자 </h1>
+            <p class="instructions">
+                <strong>조작법:</strong><br>
+                스페이스바 또는 ↑ : 점프<br>
+                ↓ : 숙이기<br><br>
+                스페이스바를 눌러 시작하세요!
+            </p>
+        </div>
+    </div>
+    
+    <script src="game.js"></script>
+</body>
+</html>

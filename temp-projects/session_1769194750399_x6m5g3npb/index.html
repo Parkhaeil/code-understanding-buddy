@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>오늘 뭐 먹지?</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <h1>오늘 뭐 먹지?</h1>
+    <a href="favorites.html" class="bookmark-link">❤ 즐겨찾기</a>
+  </header>
+
+  <main>
+    <section>
+      <h2 class="section-title">🥘 오늘의 추천 레시피</h2>
+      <button id="randomBtn" class="search-btn">🔄 랜덤 추천</button>
+      <div id="today-meal"></div>
+    </section>
+
+    <section>
+      <h2 class="section-title">🔍 재료로 레시피 찾기</h2>
+      <div id="ingredient-search">
+        <input type="text" id="ingredientInput" placeholder="예: chicken, onion">
+        <button id="searchBtn">재료로 찾기</button>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">📂 카테고리별 보기</h2>
+      <div id="category-buttons" class="grid"></div>
+    </section>
+
+    <section>
+      <h2 class="section-title">📋 전체 음식 목록</h2>
+      <div id="meal-list" class="grid"></div>
+      <div id="pagination"></div>
+    </section>
+  </main>
+
+  <div id="modal" class="hidden">
+    <div id="modal-content"></div>
+    <button onclick="closeModal()">닫기</button>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

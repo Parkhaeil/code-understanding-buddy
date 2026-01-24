@@ -9,6 +9,7 @@ type DashboardSession = {
   analysis: ProjectAnalysis;
   projectFiles: ProjectFiles;
   getFileText: (path: string) => Promise<string>;
+  sessionId?: string;
 };
 
 const Index = () => {
@@ -34,6 +35,7 @@ const Index = () => {
             analysis={session.analysis}
             projectFiles={session.projectFiles}
             getFileText={session.getFileText}
+            sessionId={session.sessionId}
           />
         )
       )}

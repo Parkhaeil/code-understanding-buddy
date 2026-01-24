@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { Settings, HelpCircle, ChevronLeft } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { Settings, HelpCircle, ChevronLeft, ExternalLink, Play, Square, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import LearningSteps from "./LearningSteps";
@@ -7,12 +7,22 @@ import FileTree from "./FileTree";
 import CodeViewer from "./CodeViewer";
 import ExplanationPanel from "./ExplanationPanel";
 import type { ProjectAnalysis, ProjectFiles, Role } from "@/types/project";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface MainDashboardProps {
   onBack: () => void;
   analysis: ProjectAnalysis;
   projectFiles: ProjectFiles;
   getFileText: (path: string) => Promise<string>;
+  sessionId?: string; // 프로젝트 세션 ID
 }
 
 type Level = 1 | 2;
@@ -118,7 +128,7 @@ export default App`,
   return contentMap[filePath] || "";
 };
 
-const MainDashboard = ({ onBack, analysis: projectAnalysis, projectFiles: initialProjectFiles, getFileText }: MainDashboardProps) => {
+const MainDashboard = ({ onBack, analysis: projectAnalysis, projectFiles: initialProjectFiles, getFileText, sessionId }: MainDashboardProps) => {
   // 프로젝트 파일 상태
   const [projectFiles, setProjectFiles] = useState<ProjectFiles>(initialProjectFiles);
 
@@ -127,9 +137,91 @@ const MainDashboard = ({ onBack, analysis: projectAnalysis, projectFiles: initia
   );
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
   const [selectedRange, setSelectedRange] = useState<{ start: number; end: number } | null>(null);
-  const [currentStep, setCurrentStep] = useState(2);
+  const [selectedCode, setSelectedCode] = useState<string>("");
+  const [currentStep, setCurrentStep] = useState(1);
   const [level, setLevel] = useState<Level>(1);
   const [leftPanelTab, setLeftPanelTab] = useState<"steps" | "files">("steps");
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [showCongratulations, setShowCongratulations] = useState(false);
+  
+  // Dev server 상태
+  const [devServerStatus, setDevServerStatus] = useState<{
+    isRunning: boolean;
+    port: number | null;
+    isStarting: boolean;
+  }>({
+    isRunning: false,
+    port: null,
+    isStarting: false,
+  });
+
+  const previewWindowRef = useRef<Window | null>(null);
+
+  // 커리큘럼 상태 (LLM 기반 레벨별 학습 단계)
+  const [curriculumTitle, setCurriculumTitle] = useState<string>("");
+  const [curriculumSteps, setCurriculumSteps] = useState<
+    Array<{
+      step: number;
+      title: string;
+      goal: string;
+      files: string[];
+      file_summary?: Record<string, {
+        one_liner: string;
+        metaphor: string;
+      }>;
+      must_know_points?: Array<{
+        point: string;
+        where_to_look?: { type: string; value: string };
+        why_it_matters?: string;
+        micro_concept?: string;
+      }>;
+      optional_do?: {
+        mission?: string;
+        how?: string[];
+        acceptance_criteria?: string[];
+      };
+      check?: {
+        quick_questions?: Array<{ q: string; expected_a: string }>;
+      };
+    }>
+  >([]);
+  const [isCurriculumLoading, setIsCurriculumLoading] = useState(false);
+  const [curriculumError, setCurriculumError] = useState<string | null>(null);
+
+  // 스텝 선택 핸들러 (스텝 클릭 시 해당 파일로 자동 전환)
+  const handleSelectStep = (stepId: number) => {
+    setCurrentStep(stepId);
+    
+    // 해당 스텝의 주요 파일로 자동 전환
+    const step = curriculumSteps.find(s => s.step === stepId);
+    if (step && step.files && step.files.length > 0) {
+      const mainFile = step.files[0]; // 첫 번째 파일을 주요 파일로 간주
+      setSelectedFile(mainFile);
+    }
+  };
+
+  // 스텝 완료 핸들러
+  const handleCompleteStep = (stepId: number) => {
+    if (!completedSteps.includes(stepId)) {
+      const newCompletedSteps = [...completedSteps, stepId];
+      setCompletedSteps(newCompletedSteps);
+      
+      // 다음 스텝으로 자동 이동
+      const totalSteps = (curriculumSteps && curriculumSteps.length > 0) 
+        ? curriculumSteps.length 
+        : projectAnalysis.learning_steps.length;
+      
+      if (stepId < totalSteps) {
+        const nextStepId = stepId + 1;
+        handleSelectStep(nextStepId); // 다음 스텝의 파일로도 자동 전환
+      }
+      
+      // 모든 스텝 완료 체크
+      if (newCompletedSteps.length === totalSteps && totalSteps > 0) {
+        setShowCongratulations(true);
+      }
+    }
+  };
 
   // selectedFile 변경 시 자동 로드
   useEffect(() => {
@@ -157,12 +249,134 @@ const MainDashboard = ({ onBack, analysis: projectAnalysis, projectFiles: initia
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFile, getFileText]);
 
+  // 레벨 변경 시 커리큘럼 요청
+  useEffect(() => {
+    const run = async () => {
+      try {
+        setIsCurriculumLoading(true);
+        setCurriculumError(null);
+
+        const response = await fetch("/api/llm/curriculum", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            level: level === 1 ? "lv1" : "lv2",
+            project_tree: projectFiles.fileList,
+            files: projectFiles.fileContentMap,
+            projectName: projectAnalysis.projectName,
+          }),
+        });
+
+        const data = await response.json();
+        if (!data.ok || !data.result) {
+          setCurriculumError(data.error || "커리큘럼을 불러오지 못했습니다.");
+          setCurriculumSteps([]);
+          return;
+        }
+
+        const result = data.result;
+        setCurriculumTitle(result.curriculum_title || "");
+        setCurriculumSteps(
+          (result.steps || []).map((s: any) => ({
+            step: s.step,
+            title: s.title,
+            goal: s.goal,
+            files: s.files || [],
+            file_summary: s.file_summary || {},
+            must_know_points: s.must_know_points || [],
+            optional_do: s.optional_do,
+            check: s.check,
+          }))
+        );
+      } catch (e) {
+        console.error("커리큘럼 로딩 오류:", e);
+        setCurriculumError(e instanceof Error ? e.message : String(e));
+        setCurriculumSteps([]);
+      } finally {
+        setIsCurriculumLoading(false);
+      }
+    };
+
+    // 파일 리스트가 있을 때만 호출
+    if (projectFiles.fileList.length > 0) {
+      run();
+    }
+  }, [level, projectFiles.fileList, projectFiles.fileContentMap, projectAnalysis.projectName]);
+
   // 파일 선택 핸들러
   const handleSelectFile = (filePath: string) => {
     setSelectedFile(filePath);
     setSelectedLine(null);
     setSelectedRange(null);
     // useEffect가 자동으로 파일 로드 처리
+  };
+
+  // 파일 내용 변경 핸들러
+  const handleFileContentChange = (newContent: string) => {
+    setProjectFiles(prev => ({
+      ...prev,
+      fileContentMap: {
+        ...prev.fileContentMap,
+        [selectedFile]: newContent
+      }
+    }));
+
+    // 저장 후 미리보기 자동 새로고침(정적 서버는 HMR이 없어서 필요)
+    if (previewWindowRef.current && !previewWindowRef.current.closed) {
+      try {
+        previewWindowRef.current.location.reload();
+      } catch {
+        // cross-origin/blocked 등은 무시
+      }
+    }
+  };
+
+  // Dev server 시작
+  const handleStartDevServer = async () => {
+    if (!sessionId) {
+      alert("세션이 없습니다. ZIP을 다시 업로드해주세요.");
+      return;
+    }
+
+    setDevServerStatus(prev => ({ ...prev, isStarting: true }));
+    try {
+      const response = await fetch("/api/project/dev-server/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, port: 8080 }),
+      });
+      const data = await response.json();
+      if (!data.ok) {
+        throw new Error(data.error || "Dev server 시작 실패");
+      }
+      setDevServerStatus({ isRunning: true, port: data.port ?? 8080, isStarting: false });
+    } catch (e) {
+      console.error("Dev server 시작 오류:", e);
+      alert(`Dev server 시작 오류: ${e instanceof Error ? e.message : String(e)}`);
+      setDevServerStatus(prev => ({ ...prev, isStarting: false }));
+    }
+  };
+
+  // Dev server 중지
+  const handleStopDevServer = async () => {
+    if (!sessionId) return;
+    try {
+      await fetch("/api/project/dev-server/stop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+    } catch (e) {
+      console.error("Dev server 중지 오류:", e);
+    } finally {
+      setDevServerStatus({ isRunning: false, port: null, isStarting: false });
+    }
+  };
+
+  // 미리보기 열기
+  const handleOpenPreview = () => {
+    if (!devServerStatus.isRunning || !devServerStatus.port) return;
+    previewWindowRef.current = window.open(`http://localhost:${devServerStatus.port}`, "_blank", "noopener,noreferrer");
   };
 
   // 현재 선택된 파일의 내용
@@ -226,6 +440,49 @@ const MainDashboard = ({ onBack, analysis: projectAnalysis, projectFiles: initia
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Dev Server Controls */}
+          <div className="flex items-center gap-2">
+            {!sessionId ? (
+              <span className="text-xs text-muted-foreground">
+                (편집/미리보기는 ZIP 업로드 세션이 필요해요)
+              </span>
+            ) : !devServerStatus.isRunning ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleStartDevServer}
+                disabled={devServerStatus.isStarting}
+                className="gap-2"
+              >
+                {devServerStatus.isStarting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
+                Dev Server 시작
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleStopDevServer}
+                  className="gap-2"
+                >
+                  <Square className="w-4 h-4" />
+                  중지
+                </Button>
+                <Button size="sm" onClick={handleOpenPreview} className="gap-2">
+                  <ExternalLink className="w-4 h-4" />
+                  미리보기 열기
+                </Button>
+                <span className="text-xs text-muted-foreground px-1">
+                  localhost:{devServerStatus.port}
+                </span>
+              </>
+            )}
+          </div>
+
           {/* Level Selector */}
           <div className="flex items-center bg-muted rounded-lg p-1">
             {([1, 2] as Level[]).map((l) => (
@@ -289,7 +546,14 @@ const MainDashboard = ({ onBack, analysis: projectAnalysis, projectFiles: initia
             {leftPanelTab === "steps" ? (
               <LearningSteps 
                 currentStep={currentStep} 
-                onSelectStep={setCurrentStep} 
+                onSelectStep={handleSelectStep} 
+                level={level}
+                curriculumSteps={curriculumSteps}
+                isLoading={isCurriculumLoading}
+                error={curriculumError}
+                curriculumTitle={curriculumTitle}
+                completedSteps={completedSteps}
+                onCompleteStep={handleCompleteStep}
               />
             ) : (
               <FileTree
@@ -315,11 +579,22 @@ const MainDashboard = ({ onBack, analysis: projectAnalysis, projectFiles: initia
             onSelectLine={(line) => {
               setSelectedLine(line);
               setSelectedRange(null);
+              // 단일 라인 클릭 시에는 코드 초기화하지 않음 (드래그 구간 유지)
             }}
             onSelectRange={(range) => {
               setSelectedRange(range);
               setSelectedLine(range.start === range.end ? range.start : null);
+              // 구간이 변경되면 이전 질문 상태 초기화
+              if (range.start !== range.end) {
+                setSelectedCode("");
+              }
             }}
+            onCodeSelect={(code) => {
+              setSelectedCode(code);
+            }}
+            editable={!!sessionId}
+            sessionId={sessionId}
+            onContentChange={handleFileContentChange}
           />
         </div>
 
@@ -331,9 +606,44 @@ const MainDashboard = ({ onBack, analysis: projectAnalysis, projectFiles: initia
             selectedRange={selectedRange}
             fileContent={selectedFileContent}
             level={level}
+            currentStep={currentStep}
+            curriculumSteps={curriculumSteps}
+            selectedCode={selectedCode}
+            onClearSelection={() => {
+              setSelectedCode("");
+              setSelectedRange(null);
+            }}
           />
         </div>
       </div>
+
+      {/* 축하 팝업 */}
+      <AlertDialog open={showCongratulations} onOpenChange={setShowCongratulations}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl flex items-center gap-2 justify-center">
+              🎉 축하합니다! 🎉
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center space-y-2 pt-4">
+              <p className="text-lg font-medium text-foreground">
+                모든 학습 스텝을 완료하셨습니다!
+              </p>
+              <p className="text-muted-foreground">
+                {projectAnalysis.projectName} 프로젝트의 구조와 동작 원리를<br />
+                성공적으로 이해하셨습니다.
+              </p>
+              <div className="pt-4 text-sm text-muted-foreground">
+                <p>💪 계속해서 코드를 탐험하고 수정해보세요!</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowCongratulations(false)}>
+              확인
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
